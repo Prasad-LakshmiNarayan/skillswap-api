@@ -1,84 +1,22 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from typing import List, Optional
+from fastapi import FastAPI
+from routers import users, skills, swaps, reviews, messages
+import models
+from database import engine
+import auth   # 👈 NEW: import auth router
 
-app = FastAPI(title="SkillSwap API")
+# Create tables
+models.Base.metadata.create_all(bind=engine)
 
-# Temporary "database" (in-memory for now, later we connect to real DB)
-users_db = {}
-skills_db = {}
-user_counter = 1
-skill_counter = 1
+app = FastAPI(title="SkillSwap API", version="1.0")
 
-# Pydantic models
-class User(BaseModel):
-    name: str
-    email: str
+# 👇 Register all routers
+app.include_router(auth.router)      # 👈 Adds signup/login
+app.include_router(users.router)
+app.include_router(skills.router)
+app.include_router(swaps.router)
+app.include_router(reviews.router)
+app.include_router(messages.router)
 
-class Skill(BaseModel):
-    user_id: int
-    skill_name: str
-    description: Optional[str] = None
-
-# ---------------------------
-# User Routes
-# ---------------------------
-
-@app.post("/users")
-def create_user(user: User):
-    global user_counter
-    users_db[user_counter] = {"id": user_counter, **user.dict()}
-    user_counter += 1
-    return users_db[user_counter - 1]
-
-@app.get("/users/{user_id}")
-def get_user(user_id: int):
-    if user_id not in users_db:
-        raise HTTPException(status_code=404, detail="User not found")
-    return users_db[user_id]
-
-@app.get("/users")
-def list_users():
-    return list(users_db.values())
-
-@app.put("/users/{user_id}")
-def update_user(user_id: int, user: User):
-    if user_id not in users_db:
-        raise HTTPException(status_code=404, detail="User not found")
-    users_db[user_id].update(user.dict())
-    return users_db[user_id]
-
-@app.delete("/users/{user_id}")
-def delete_user(user_id: int):
-    if user_id not in users_db:
-        raise HTTPException(status_code=404, detail="User not found")
-    deleted = users_db.pop(user_id)
-    return {"message": "User deleted", "user": deleted}
-
-# ---------------------------
-# Skill Routes
-# ---------------------------
-
-@app.post("/skills")
-def create_skill(skill: Skill):
-    global skill_counter
-    if skill.user_id not in users_db:
-        raise HTTPException(status_code=404, detail="User not found")
-    skills_db[skill_counter] = {"id": skill_counter, **skill.dict()}
-    skill_counter += 1
-    return skills_db[skill_counter - 1]
-
-@app.get("/skills")
-def list_skills():
-    return list(skills_db.values())
-
-@app.get("/skills/{skill_id}")
-def get_skill(skill_id: int):
-    if skill_id not in skills_db:
-        raise HTTPException(status_code=404, detail="Skill not found")
-    @app.get("/")
-    def root():
-        return {"message": "Welcome to SkillSwap API! 🚀 Use /docs to explore the API."}
-    
-
-    return skills_db[skill_id]
+@app.get("/")
+def root():
+    return {"message": "Welcome to SkillSwap 🚀"}
